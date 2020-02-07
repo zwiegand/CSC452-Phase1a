@@ -41,7 +41,7 @@ void P1ContextInit(void)
     // I was thinking as P1ContextCreate takes contexts in the 
     // array 'contexts', it can mark isFree = false.
     for(i = 0; i < P1_MAXPROC; i++){
-        contexts[i]->isFree = true;
+        contexts[i].isFree = true;
     }
 }
 
@@ -52,7 +52,7 @@ int P1ContextCreate(void (*func)(void *), void *arg, int stacksize, int *cid) {
     // allocate the stack, specify the startFunc, etc.
     int i;
     for (i = 0; i < P1_MAXPROC; i++){
-        if (contexts[i]->isFree == true){
+        if (contexts[i].isFree == true){
             //Code in here is executed if a free context is found.
 
             // Checking if stacksize passed in is min size.
@@ -67,25 +67,25 @@ int P1ContextCreate(void (*func)(void *), void *arg, int stacksize, int *cid) {
             char newStack[stacksize];
 
             //Specifying startFunc and its startArg
-            contexts[i]->startArg = arg;
-            contexts[i]->startFunc = func;
+            contexts[i].startArg = arg;
+            contexts[i].startFunc = func;
             //Letting the context know its own cid.
-            contexts[i]->cid = cid;
+            contexts[i].cid = cid;
             // The P3_allocatePageTable asks for a (int pid) as
             //  parameter. Not sure if the Process ID (pid) is the same
             //  as a Context ID (cid)? But i'm making the assumption for 
             // now. There is no other purpose for the cid here, so I think
             //  it really is right.
-            contexts[i]->pageTable = P3_AllocatePageTable(cid);
+            contexts[i].pageTable = P3_AllocatePageTable(cid);
             // So first parameter is (USLOSS_Context *context).
             // In phase0 and examples you would put &myContext as that parameter,
             // i'm not sure exactly if I did that right here with (contexts[i]->context).
 
-            USLOSS_ContextInit(contexts[i]->context, newStack, sizeof(newStack),
-            contexts[i]->pageTable, contexts[i]->startFunc);
+            USLOSS_ContextInit(contexts[i].context, newStack, sizeof(newStack),
+            contexts[i].pageTable, contexts[i].startFunc);
             
             // We filled context so it is not free.
-            contexts[i]->isFree = false;
+            contexts[i].isFree = false;
 
             // result is still P1_Success
             return result;
