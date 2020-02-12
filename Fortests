@@ -1,0 +1,132 @@
+#include <phase1.h>
+#include <phase1Int.h>
+#include <assert.h>
+
+
+
+
+
+
+/* My Test */
+int *num = 0;
+
+int cid;
+int rc;
+void
+Test0(void *arg)
+{
+    int i;
+    for (i = 0; i < 4; i++) {
+        USLOSS_Console("Test0 %d\n", i);
+        rc = P1ContextSwitch(1);
+
+    }
+    USLOSS_Halt(0);
+}
+void
+Test1(void *arg)
+{
+    int i;
+    for (i = 0; i < 4; i++) {
+        USLOSS_Console("Test1 %d\n", i);
+        rc = P1ContextSwitch(0);
+
+    }
+    USLOSS_Halt(0);
+}
+
+void helper(void)
+{   
+    P1ContextInit();
+    rc = P1ContextCreate(Test0, 0, USLOSS_MIN_STACK, &cid);
+    rc = P1ContextCreate(Test1, 0, USLOSS_MIN_STACK, &cid);
+    //USLOSS_ContextInit(&context0, stack0, sizeof(stack0), NULL, Test0);
+    //USLOSS_ContextInit(&context1, stack1, sizeof(stack1), NULL, Test1);
+    rc = P1ContextSwitch(0);
+}
+
+void
+startup(int argc, char **argv)
+{
+    
+    
+    USLOSS_Console("Startup\n");
+    helper();
+}
+void
+finish(int argc, char **argv)
+{
+    USLOSS_Console("Finish\n");
+}
+void test_setup(int argc, char **argv) {}
+void test_cleanup(int argc, char **argv) {}
+
+
+/*
+int cid;
+int rc;
+
+static void
+Output3(void *arg)
+{
+    char *msg = (char *) arg;
+
+    USLOSS_Console("%s", msg);
+    USLOSS_Halt(0);
+
+
+}
+
+
+
+
+static void
+Output2(void *arg)
+{
+    char *msg = (char *) arg;
+
+    USLOSS_Console("%s", msg);
+   // rc = P1ContextFree(0);
+    rc = P1ContextCreate(Output3, "Third Context!\n", USLOSS_MIN_STACK, &cid);
+    
+    
+    rc = P1ContextSwitch(cid);
+
+
+}
+
+
+static void
+Output(void *arg) 
+{
+    char *msg = (char *) arg;
+
+    USLOSS_Console("%s", msg);
+    rc = P1ContextCreate(Output2, "Second Context!\n", USLOSS_MIN_STACK, &cid);
+    rc = P1ContextSwitch(cid);
+}
+
+
+
+void
+startup(int argc, char **argv)
+{
+    
+    
+    P1ContextInit();
+    
+    rc = P1ContextCreate(Output, "HelloHH World!\n", USLOSS_MIN_STACK, &cid);
+    assert(rc == P1_SUCCESS);
+    rc = P1ContextSwitch(cid);
+    
+    // should not return
+    assert(rc == P1_SUCCESS);
+    assert(0);
+}
+
+void test_setup(int argc, char **argv) {}
+
+void test_cleanup(int argc, char **argv) {}
+
+void finish(int argc, char **argv) {}
+*/
