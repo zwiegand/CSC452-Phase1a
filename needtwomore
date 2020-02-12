@@ -1,0 +1,217 @@
+#include "phase1Int.h"
+#include "usloss.h"
+#include <stdlib.h>
+#include <assert.h>
+#include <stdio.h>
+
+extern  USLOSS_PTE  *P3_AllocatePageTable(int cid);
+extern  void        P3_FreePageTable(int cid);
+
+typedef struct Context {
+    void            (*startFunc)(void *);
+    void            *startArg;
+    USLOSS_Context  context;
+    // you'll need more stuff here
+    int             isFree;
+    char             *stack;
+} Context;
+static Context   contexts[P1_MAXPROC];
+
+static int currentCid = -1;
+static int psrVal;
+/*
+ * Helper function to call func passed to P1ContextCreate with its arg.
+ * Put this in contextswitch
+ */
+static void launch(void)
+{
+    assert(contexts[currentCid].startFunc != NULL);
+    contexts[currentCid].startFunc(contexts[currentCid].startArg);
+}
+
+void P1ContextInit(void)
+{   
+    
+    psrVal = USLOSS_PsrSet(7);
+    printf("%d psr after i tried to change it\n", USLOSS_PsrGet());
+    // CHeck if in kernel mode
+    if ((1 & USLOSS_PsrGet()) != 1){
+        USLOSS_IllegalInstruction();
+        USLOSS_Halt(0);
+    }
+    //This function was given to us empty, all code I added, and
+    // therefore could be wrong.
+    int i;
+    // ZACK
+    // I just went through and said all the contexts in the array
+    // of contexts defined are free. 
+    // I was thinking as P1ContextCreate takes contexts in the 
+    // array 'contexts', it can mark isFree = false.
+    for(i = 0; i < P1_MAXPROC; i++){
+        contexts[i].isFree = 1;
+        contexts[i].startFunc = NULL;
+        contexts[i].startArg = NULL;
+        contexts[i].stack = NULL;
+
+
+    }
+}
+
+int P1ContextCreate(void (*func)(void *), void *arg, int stacksize, int *cid) {
+    
+    // CHeck if in kernel mode
+    if ((1 & USLOSS_PsrGet()) != 1){
+        USLOSS_IllegalInstruction();
+        USLOSS_Halt(0);
+    }
+    
+    int result = P1_SUCCESS;
+    // Above is given
+    // find a free context and initialize it
+    // allocate the stack, specify the startFunc, etc.
+    
+    int i;
+    for (i = 0; i < P1_MAXPROC; i++){
+        if (contexts[i].isFree == 1){
+            //Code in here is executed if a free context is found.
+
+            // Checking if stacksize passed in is min size.
+            if (stacksize < USLOSS_MIN_STACK){
+                result = P1_INVALID_STACK;
+                return result;
+            }
+            contexts[i].stack = malloc(stacksize);
+        
+           
+            //Specifying startFunc and its startArg
+            contexts[i].startArg = arg;
+            contexts[i].startFunc = func;
+            //Letting the context know its own cid.
+            // Maybe change, syntax
+           
+            *cid = i;
+            
+            
+            // So first parameter is (USLOSS_Context *context).
+            // In phase0 and examples you would put &myContext as that parameter,
+            // i'm not sure exactly if I did that right here with (contexts[i]->context).
+
+            USLOSS_ContextInit(&contexts[i].context, contexts[i].stack, stacksize, P3_AllocatePageTable(i), launch);
+            
+            // We filled context so it is not free.
+            contexts[i].isFree = 0;
+
+            // result is still P1_Success
+            return result;
+        
+        }
+    }
+   
+    // If the code gets to here without returning, then there were
+    //  no free contexts to be found. Return value will reflect that.
+    result = P1_TOO_MANY_CONTEXTS;
+    // Below is given
+    return result;
+}
+
+// I have not touched anything below here - Zack
+
+int P1ContextSwitch(int cid) {
+    // CHeck if in kernel mode
+    if ((1 & USLOSS_PsrGet()) != 1){
+        USLOSS_IllegalInstruction();
+        USLOSS_Halt(0);
+    }
+
+
+    int result = P1_SUCCESS;
+    int oldCid;
+    USLOSS_Context null_context;
+    // switch to the specified context
+    //printf("Context switch called\n");
+    if(cid >= 0 && cid < P1_MAXPROC){
+        oldCid = currentCid;
+        currentCid = cid;
+        // This means no context is running yet, so switch from null_context.
+        if (oldCid < 0){
+            USLOSS_ContextSwitch(&null_context, &contexts[currentCid].context);
+        } else {
+            USLOSS_ContextSwitch(&contexts[oldCid].context, &contexts[currentCid].context);
+        }
+        
+        
+    
+        return result;
+    } 
+    //printf("Invalid cid used\n");
+    result = P1_INVALID_CID;
+    return result;
+}
+
+int P1ContextFree(int cid) {
+    // CHeck if in kernel mode
+    if ((1 & USLOSS_PsrGet()) != 1){
+        USLOSS_IllegalInstruction();
+        USLOSS_Halt(0);
+    }
+
+
+    //printf("context free called\n");
+    int result = P1_SUCCESS;
+    // If context in use just return the error and dont free the context.
+    if (currentCid == cid){
+        result = P1_CONTEXT_IN_USE;
+        return result;
+    }
+    // If the context is out of range, return error and dont do anything else.
+    if (cid < 0 || cid >= P1_MAXPROC){
+        result = P1_INVALID_CID;
+        return result;
+    }
+    // free the stack and mark the context as unused <-This was given
+    
+    P3_FreePageTable(cid);
+    free(contexts[cid].stack);
+    contexts[cid].isFree = 1;
+    contexts[cid].startFunc = NULL;
+    contexts[cid].startArg = NULL;
+    
+    // Return success.
+    return result;
+}
+
+
+void 
+P1EnableInterrupts(void) 
+{   
+    // CHeck if in kernel mode
+    if ((1 & USLOSS_PsrGet()) != 1){
+        USLOSS_IllegalInstruction();
+        USLOSS_Halt(0);
+    }
+
+    printf("enable interrupt called\n");
+    // set the interrupt bit in the PSR
+}
+
+/*
+ * Returns true if interrupts were enabled, false otherwise.
+ */
+int 
+P1DisableInterrupts(void) 
+{   
+    // CHeck if in kernel mode
+    if ((1 & USLOSS_PsrGet()) != 1){
+        USLOSS_IllegalInstruction();
+        USLOSS_Halt(0);
+    }
+
+    printf("disable interrupt called\n");
+    int enabled = FALSE;
+    // set enabled to TRUE if interrupts are already enabled
+    // clear the interrupt bit in the PSR
+    return enabled;
+}
+
+
+//
